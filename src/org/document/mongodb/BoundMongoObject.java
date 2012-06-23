@@ -6,11 +6,13 @@ package org.document.mongodb;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.bson.BSONObject;
+import org.document.DataUtils;
 import org.document.Document;
 import org.document.PropertyStore;
 import org.document.schema.DocumentSchema;
@@ -50,8 +52,8 @@ public class BoundMongoObject extends BasicDBObject implements Document {
     }
 
     public void objectDone(DBObject o) {
-        System.out.println("NEW DECODER IN");
-        if (isEmbedded(o)) {
+        //if (isEmbedded(o)) {
+        if (this.getClass().equals(o.getClass())) {
             ((BoundMongoObject) o).applyChanges();
         }
     }
@@ -69,50 +71,17 @@ public class BoundMongoObject extends BasicDBObject implements Document {
             if (f == null) {
                 continue;
             }
-            if (Document.class.isAssignableFrom(f.getPropertyType())) {
+            if (BoundMongoObject.class.isAssignableFrom(f.getPropertyType())) {
                 changeBean(key, o);
             } else if (Map.class.isAssignableFrom(f.getPropertyType())) {
-                changeMap(key, o);
-            }
+                Map m = (Map) propertyStore.getValue(key);
+                changeMapElements((DBObject) o, m);
+            }/* else if (List.class.isAssignableFrom(f.getPropertyType())) {
+             List l = (List) propertyStore.getValue(key);
+             changeListElements((DBObject)o, l);
+             }
+             */
         }
-    }
-
-    protected void changeMap(String key, Object value) {
-
-        SchemaField field = getSchemaField(key);
-
-        if (field == null) { // ? tail
-            return;
-        }
-        Map bean = (Map) propertyStore.getValue(key);
-        try {
-            DBObject dbObject = (DBObject) value;
-            for (String dboKey : dbObject.keySet()) {
-                Object o = dbObject.get(dboKey);
-
-                if (isEmbeddedElement(o)) {
-                    BoundMongoObject elem = getEmbeddedElement(dboKey, bean, (DBObject)o);
-                    bean.put(dboKey, elem);
-                    continue;
-                }
-                if (o instanceof DBObject) {
-                    // List or Map 
-                    //TODO for List
-                    Map target = (Map) bean.get(dboKey);
-                    if (target == null) {
-                        target = new HashMap();
-                    }
-                    changeMapElements((DBObject) o, target);
-                    bean.put(dboKey, target);
-                } else {
-                    bean.put(dboKey, o);
-                }
-                //SchemaField f = getSchemaField(dboKey);
-            }
-
-        } catch (Exception e) {
-        }
-
     }
 
     protected void changeMapElements(DBObject dbObject, Map target) {
@@ -124,8 +93,7 @@ public class BoundMongoObject extends BasicDBObject implements Document {
             for (String dboKey : dbObject.keySet()) {
                 Object o = dbObject.get(dboKey);
                 if (isEmbeddedElement(o)) {
-                    BoundMongoObject elem = getEmbeddedElement(dboKey, target, (DBObject)o);
-                    //((BoundMongoObject) o).applyChanges();
+                    BoundMongoObject elem = getEmbeddedElement(dboKey, target, (DBObject) o);
                     target.put(dboKey, elem);
                     continue;
                 }
@@ -145,17 +113,46 @@ public class BoundMongoObject extends BasicDBObject implements Document {
 
     }
 
+    protected void changeListElements(DBObject dbObject, List target) {
+        if (dbObject == null) {
+            return;
+        }
+        /*        try {
+         target.clear();
+         for (String dboKey : dbObject.keySet()) {
+         Object o = dbObject.get(dboKey);
+         if (isEmbeddedElement(o)) {
+         BoundMongoObject elem = getEmbeddedElement(dboKey, target, (DBObject)o);
+         target.add(elem);
+         continue;
+         }
+         if (o instanceof DBObject) {
+         // List or Map 
+         //TODO for List
+         Map t = new HashMap();
+         changeMapElements((DBObject) o, t);
+         target.put(dboKey, t);
+         } else {
+         target.put(dboKey, o);
+         }
+         //SchemaField f = getSchemaField(dboKey);
+         }
+         } catch (Exception e) {
+         }
+         */
+    }
+
     protected BoundMongoObject getEmbeddedElement(String key, Map map, DBObject o) {
-        BoundMongoObject elem = (BoundMongoObject)map.get(key);
+        BoundMongoObject elem = (BoundMongoObject) map.get(key);
         if (elem == null) {
             String cname = null;
             try {
                 cname = (String) ((DBObject) o).get("bd_className_");
                 elem = (BoundMongoObject) Class.forName(cname).newInstance();
                 List<SchemaField> sc = getSchemaFields(elem);
-                for ( SchemaField f : sc) {
-                    String nm = (String)f.getPropertyName();
-                    
+                for (SchemaField f : sc) {
+                    String nm = (String) f.getPropertyName();
+
                     elem.put(nm, ((DBObject) o).get(nm));
                 }
                 elem.applyChanges();
@@ -177,6 +174,11 @@ public class BoundMongoObject extends BasicDBObject implements Document {
         }
         BoundMongoObject bean = (BoundMongoObject) propertyStore.getValue(key);
         try {
+            if (bean == null) {
+                bean = (BoundMongoObject)field.getPropertyType().newInstance();
+                propertyStore.putSilent(key, bean);
+            }
+
             DBObject dbObject = (DBObject) value;
             for (SchemaField f : bean.getSchemaFields()) {
                 Object v = dbObject.get(f.getPropertyName().toString());
@@ -196,7 +198,7 @@ public class BoundMongoObject extends BasicDBObject implements Document {
     }
 
     private boolean isEmbedded(Object o) {
-        return Document.class.isAssignableFrom(o.getClass());
+        return BoundMongoObject.class.isAssignableFrom(o.getClass());
     }
 
     private boolean isEmbeddedElement(Object o) {
@@ -252,6 +254,137 @@ public class BoundMongoObject extends BasicDBObject implements Document {
     }
 
     public Object putBean(String key, Object value) {
+        return putBean(this, key, value);
+        /*        SchemaField field = getSchemaField(key);
+
+         if (field == null) { // ? tail
+         return null;
+         }
+         Object result = null;
+         try {
+         result = propertyStore.getValue(key);
+         Class propertyType = field.getPropertyType();
+         if ( propertyType.isPrimitive() ) {
+         propertyType = DataUtils.getWrapper(propertyType);
+         }
+         if (value == null) {
+         propertyStore.putSilent(key, value);
+         } else if ( MongoUtils.isMongoValueType(propertyType)){
+         if ( propertyType.isAssignableFrom(value.getClass())) {
+         propertyStore.putSilent(key, value);
+         }
+         } else if (BoundMongoObject.class.isAssignableFrom(value.getClass())) {
+         if ( propertyType.isAssignableFrom(value.getClass())) {
+         propertyStore.putSilent(key, value);
+         }
+         // else error
+         } else if (List.class.isAssignableFrom(propertyType)) {
+         if ( propertyType.isAssignableFrom(value.getClass())) {
+         propertyStore.putSilent(key, value);
+         }
+         // else error
+         }  else if (Map.class.isAssignableFrom(propertyType)) {
+         if ( propertyType.isAssignableFrom(value.getClass())) {
+         propertyStore.putSilent(key, value);
+         }
+         // else error
+         } else if (DBObject.class.isAssignableFrom(value.getClass())) {
+         //
+         // Here we must convert if possible the DBObject to property type
+         // Property type may be only of BoundMongoObjectType: 
+         //
+         if (BoundMongoObject.class.isAssignableFrom(propertyType)) {
+         Object property = result; // current value
+         if ( property == null ) {
+         property = propertyType.newInstance();
+         }
+         BoundMongoObject bobj = (BoundMongoObject)property;
+         List<SchemaField> fields = getSchemaFields(bobj);
+         for ( SchemaField f : fields) {
+         String nm = f.getPropertyName().toString();
+         bobj.propertyStore.putSilent(nm, ((DBObject)value).get(nm));
+         }
+         propertyStore.putSilent(key, value);
+         }// else error
+         } else {
+         propertyStore.putSilent(key, value);
+         }
+         } catch (Exception e) {
+         System.out.println(e.getMessage());
+         }
+
+         return result;
+         */
+    }
+
+    protected Object putBean(BoundMongoObject boundObj, String key, Object value) {
+
+        SchemaField field = boundObj.getSchemaField(key);
+
+        if (field == null) { // ? tail
+            return null;
+        }
+        Object result = null;
+        try {
+            result = boundObj.propertyStore.getValue(key);
+            Class propertyType = field.getPropertyType();
+            if (propertyType.isPrimitive()) {
+                propertyType = DataUtils.getWrapper(propertyType);
+            }
+            if (value == null) {
+                boundObj.propertyStore.putSilent(key, value);
+            } else if (MongoUtils.isMongoValueType(propertyType)) {
+                if (propertyType.isAssignableFrom(value.getClass())) {
+                    boundObj.propertyStore.putSilent(key, value);
+                    Object oo = boundObj.propertyStore.getValue(key);
+                    int i = 0;
+                }
+            } else if (BoundMongoObject.class.isAssignableFrom(value.getClass())) {
+                if (propertyType.isAssignableFrom(value.getClass())) {
+                    boundObj.propertyStore.putSilent(key, value);
+                }
+                // else error
+            } else if (List.class.isAssignableFrom(propertyType)) {
+                if (propertyType.isAssignableFrom(value.getClass())) {
+                    boundObj.propertyStore.putSilent(key, value);
+                }
+                // else error
+            } else if (Map.class.isAssignableFrom(propertyType)) {
+                if (propertyType.isAssignableFrom(value.getClass())) {
+                    boundObj.propertyStore.putSilent(key, value);
+                }
+                // else error
+            } else if (DBObject.class.isAssignableFrom(value.getClass())) {
+                //
+                // Here we must convert if possible the DBObject to property type
+                // Property type may be only of BoundMongoObjectType: 
+                //
+                if (BoundMongoObject.class.isAssignableFrom(propertyType)) {
+                    Object property = result; // current value
+                    if (property == null) {
+                        property = propertyType.newInstance();
+                    }
+                    BoundMongoObject bobj = (BoundMongoObject) property;
+                    List<SchemaField> fields = boundObj.getSchemaFields(bobj);
+                    for (SchemaField f : fields) {
+                        String nm = f.getPropertyName().toString();
+                        bobj.propertyStore.putSilent(nm, ((DBObject) value).get(nm));
+                        putBean(bobj, nm, ((DBObject) value).get(nm));
+                    }
+                    propertyStore.putSilent(key, value);
+                }// else error
+            } else {
+                propertyStore.putSilent(key, value);
+            }
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+        return result;
+
+    }
+
+    public Object putBeanOLD(String key, Object value) {
 
         SchemaField field = getSchemaField(key);
 
@@ -274,17 +407,33 @@ public class BoundMongoObject extends BasicDBObject implements Document {
                 } catch (Exception e) {
                 }
             } else if (Map.class.isAssignableFrom(field.getPropertyType())) {
-                Map o;
+                Map map;
                 if (field.getPropertyType().isInterface()) {
-                    o = new HashMap();
+                    map = new HashMap();
                 } else {
-                    o = (Map) field.getPropertyType().newInstance();
+                    map = (Map) field.getPropertyType().newInstance();
                 }
+                //changeMapElements((DBObject) value, map);
                 DBObject dbv = (DBObject) value;
                 if (dbv != null) {
-                    o.putAll(dbv.toMap());
+                    map.putAll(dbv.toMap());
                 }
-                propertyStore.putSilent(key, o);
+
+                propertyStore.putSilent(key, map);
+            } else if (List.class.isAssignableFrom(field.getPropertyType())) {
+                List list;
+                if (field.getPropertyType().isInterface()) {
+                    list = new ArrayList();
+                } else {
+                    list = (List) field.getPropertyType().newInstance();
+                }
+                changeListElements((DBObject) value, list);
+                /*                DBObject dbv = (DBObject) value;
+                 if (dbv != null) {
+                 map.putAll(dbv.toMap());
+                 }
+                 */
+                propertyStore.putSilent(key, list);
             } else {
                 propertyStore.putSilent(key, value);
             }
@@ -415,8 +564,9 @@ public class BoundMongoObject extends BasicDBObject implements Document {
         }
         return null;
     }
+
     protected List<SchemaField> getSchemaFields(Document d) {
-        DocumentSchema sc = ((HasSchema)d.propertyStore()).getSchema();
+        DocumentSchema sc = ((HasSchema) d.propertyStore()).getSchema();
         if (sc != null) {
             return sc.getFields();
         }

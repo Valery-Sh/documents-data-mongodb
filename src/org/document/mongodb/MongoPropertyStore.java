@@ -90,6 +90,7 @@ public class MongoPropertyStore extends DocumentPropertyStore {
                 if (key.equals(pname)) {
                     Method m = props[i].getWriteMethod();
                     m.invoke(obj, newValue);
+                    break;
                 }
 
             }//for
@@ -104,8 +105,8 @@ public class MongoPropertyStore extends DocumentPropertyStore {
     }
 
     @Override
-    protected DocumentSchema createSchema(Class sourceClass, Class restrictSuper) {
-        DocumentSchema sc = SchemaUtils.createSchema(sourceClass,restrictSuper);        
+    protected DocumentSchema createSchema(Class sourceClass, Class superBoundary) {
+        DocumentSchema sc = SchemaUtils.createSchema(sourceClass,superBoundary);        
         SchemaField f = new SchemaField("bd_className_",String.class);
         sc.getFields().add(f);
         return sc;
