@@ -29,11 +29,11 @@ public class BdDefaultDBDecoder extends DefaultDBDecoder{
         
     @Override
     public DBObject decode(byte[] b, DBCollection collection) {
-       //((BoundMongoObject)o).objectDone(o);
+       //((BdMongoObject)o).objectDone(o);
         
         DBObject o = super.decode(b, collection);
-        if ( o != null && (o instanceof BoundMongoObject)) {
-            ((BoundMongoObject)o).objectDone(o);
+        if ( o != null && (o instanceof BdMongoObject)) {
+            ((BdMongoObject)o).objectDone(o);
         }
         return o;
     }
@@ -41,8 +41,8 @@ public class BdDefaultDBDecoder extends DefaultDBDecoder{
     @Override
     public DBObject decode(InputStream in,  DBCollection collection) throws IOException {
         DBObject o = super.decode(in, collection);
-        if ( o != null && (o instanceof BoundMongoObject)) {
-            ((BoundMongoObject)o).objectDone(o);
+        if ( o != null && (o instanceof BdMongoObject)) {
+            ((BdMongoObject)o).objectDone(o);
         }
         return o;
     }

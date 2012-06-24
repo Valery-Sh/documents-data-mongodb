@@ -100,9 +100,9 @@ public class MongoPropertyStore extends DocumentPropertyStore {
     @Override
     protected DocumentSchema createSchema(Class sourceClass, Class superBoundary) {
         //DocumentSchema sc = SchemaUtils.createSchema(sourceClass,superBoundary);        
-        DocumentSchema sc = MongoUtils.createSchema(sourceClass,BoundMongoObject.class);        
+        DocumentSchema sc = MongoUtils.createSchema(sourceClass,BdMongoObject.class);        
         //SchemaField f = new SchemaField("bd_className_",String.class);
-        //SchemaField f = SchemaUtils.createField("bd_className_", BoundMongoObject.class, BoundMongoObject.class);
+        //SchemaField f = SchemaUtils.createField("bd_className_", BdMongoObject.class, BdMongoObject.class);
         //sc.getFields().add(f);
         return sc;
 
