@@ -21,25 +21,17 @@ public class MongoPropertyStore extends DocumentPropertyStore {
     public MongoPropertyStore(Document source) {
         super(source);
     }
-
-    @Override
-    public Object getValue(String key) {
-        return getValue(key, owner);
-    }
-
     @Override
     public Object putSilent(String key, Object value) {
         return super.putSilent(key, value);
     }
 
-    /**
-     * The method is defined in order to easy override in a subclass without a
-     * need to override the
-     * <code>putValue</code> method.
-     *
-     * @param name string property name
-     * @param value a value to be bind
-     */
+/*    @Override
+    public Object getValue(String key) {
+        return getValue(key, owner);
+    }
+
+
     @Override
     protected void setPropertyValue(String key, Object value) {
         setValue(key, owner, value);
@@ -76,6 +68,7 @@ public class MongoPropertyStore extends DocumentPropertyStore {
 
     public static void setValue(String key, Object obj, Object newValue) {
         String error;// = "";
+        
         if (obj instanceof KeyValueMap) {
             ((KeyValueMap) obj).getMap().put(key, newValue);
             return;
@@ -103,12 +96,14 @@ public class MongoPropertyStore extends DocumentPropertyStore {
             error = ex.getMessage();
         }
     }
-
+*/
     @Override
     protected DocumentSchema createSchema(Class sourceClass, Class superBoundary) {
-        DocumentSchema sc = SchemaUtils.createSchema(sourceClass,superBoundary);        
-        SchemaField f = new SchemaField("bd_className_",String.class);
-        sc.getFields().add(f);
+        //DocumentSchema sc = SchemaUtils.createSchema(sourceClass,superBoundary);        
+        DocumentSchema sc = MongoUtils.createSchema(sourceClass,BoundMongoObject.class);        
+        //SchemaField f = new SchemaField("bd_className_",String.class);
+        //SchemaField f = SchemaUtils.createField("bd_className_", BoundMongoObject.class, BoundMongoObject.class);
+        //sc.getFields().add(f);
         return sc;
 
     }

@@ -29,6 +29,8 @@ public class BdDefaultDBDecoder extends DefaultDBDecoder{
         
     @Override
     public DBObject decode(byte[] b, DBCollection collection) {
+       //((BoundMongoObject)o).objectDone(o);
+        
         DBObject o = super.decode(b, collection);
         if ( o != null && (o instanceof BoundMongoObject)) {
             ((BoundMongoObject)o).objectDone(o);
